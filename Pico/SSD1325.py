@@ -11,9 +11,15 @@ def __bus_dat__():  #   WR CS DC
     pull()          .side(0b101);
     out(pins, 8)    .side(0b001);
     nop()           .side(0b101);
+    out(pins, 8)    .side(0b001);
+    nop()           .side(0b101);
+    out(pins, 8)    .side(0b001);
+    nop()           .side(0b101);
+    out(pins, 8)    .side(0b001);
+    nop()           .side(0b101);
     nop()           .side(0b111);
 
-smd = rp2.StateMachine(0, __bus_dat__, freq = 64_000_000, sideset_base = Pin(8), out_base = Pin(0));
+smd = rp2.StateMachine(0, __bus_dat__, freq = 20_000_000, sideset_base = Pin(8), out_base = Pin(0));
 
 @rp2.asm_pio(out_init = (PIO.OUT_HIGH, ) * 8, sideset_init = (PIO.OUT_HIGH, ) * 3)
 def __bus_cmd__():  #   WR CS DC
@@ -22,7 +28,7 @@ def __bus_cmd__():  #   WR CS DC
     nop()           .side(0b100);
     nop()           .side(0b111);
 
-smc = rp2.StateMachine(1, __bus_cmd__, freq = 64_000_000, sideset_base = Pin(8), out_base = Pin(0));
+smc = rp2.StateMachine(1, __bus_cmd__, freq = 20_000_000, sideset_base = Pin(8), out_base = Pin(0));
 
 RD = Pin(11, Pin.OUT, value = 1);
 RST = Pin(13, Pin.OUT, value = 1);
@@ -60,7 +66,7 @@ def dat(value):
     if (not smd.active()):
         smd.active(1);
         
-    smd.put(value, 24);
+    smd.put(value);
 
 def cmd(value):
     if (smd.active()):
@@ -82,8 +88,8 @@ def send(x, y, w, h, buffer):
     siz = int(w * h / 2);
     addr(x, y, w, h);
     if (siz <= len(buffer)):
-        for i in range(0, siz):
-            dat(buffer[i]);
+        for i in range(0, int(siz / 4)):
+            dat(buffer[i * 4] << 24 | buffer[i * 4 + 1] << 16 | buffer[i * 4 + 2] << 8 | buffer[i * 4 + 3]);
 
 def copy(dx, dy, sx, sy, w, h):
     sx = int(sx / 2);
@@ -108,8 +114,8 @@ def fill(x, y, w, h, color, acc = False):
         cmd(c);
     else:
         addr(x, y, w, h);
-        for i in range(0, int(w * h / 2)):
-            dat(c);
+        for i in range(0, int(w * h / 2 / 4)):
+            dat(c << 24 | c << 16 | c << 8 | c);
 
 def clear(color = 0x0):
     fill(0, 0, 128, 64, color, True);
@@ -234,4 +240,3 @@ def prtc(x, y, fid, color, str):
     (f, f_w, f_h) = __font__(fid);
     end = len(str);
     prt(x - end * f_w / 2, y, fid, color, str);
-
